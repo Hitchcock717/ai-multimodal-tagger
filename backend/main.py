@@ -1,7 +1,15 @@
+import os
+import sys
+from pathlib import Path
+
+# 将当前目录添加到 sys.path 以支持 Vercel 上的相对导入
+current_dir = Path(__file__).parent.absolute()
+if str(current_dir) not in sys.path:
+    sys.path.append(str(current_dir))
+
 from fastapi.responses import FileResponse, JSONResponse, StreamingResponse
 import pandas as pd
 import io
-import os
 import shutil
 import uuid
 import asyncio
@@ -10,10 +18,17 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTa
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
-from pathlib import Path
 
-from services.pdf_service import extract_pdf_info, get_category_from_filename
-from services.inference_service import get_product_tags, synthesize_report
+try:
+    from services.pdf_service import extract_pdf_info, get_category_from_filename
+    from services.inference_service import get_product_tags, synthesize_report
+except ImportError as e:
+    print(f"Import error: {e}")
+    # 提供 Mock 函数防止初始化失败，但在运行时会报错
+    def extract_pdf_info(*args, **kwargs): raise Exception(f"Import failed: {e}")
+    def get_category_from_filename(*args, **kwargs): return "Unknown"
+    def get_product_tags(*args, **kwargs): raise Exception(f"Import failed: {e}")
+    def synthesize_report(*args, **kwargs): raise Exception(f"Import failed: {e}")
 
 app = FastAPI()
 
@@ -28,7 +43,8 @@ app.add_middleware(
 
 # 生产环境判断
 IS_VERCEL = os.getenv("VERCEL") == "1"
-UPLOAD_DIR = Path("/tmp/uploads" if IS_VERCEL else "uploads")
+# Vercel 下使用 /tmp，本地使用 uploads
+UPLOAD_DIR = Path("/tmp") if IS_VERCEL else Path("uploads")
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # 适配 Vercel 的 API 路由
@@ -44,16 +60,23 @@ class ProcessRequest(BaseModel):
 
 @api_router.get("/files")
 async def list_files():
-    files = []
-    for f in UPLOAD_DIR.glob("*.pdf"):
-        stat = f.stat()
-        files.append({
-            "name": f.name,
-            "size": stat.st_size,
-            "upload_time": stat.st_mtime,
-            "path": str(f)
-        })
-    return files
+    try:
+        files = []
+        for f in UPLOAD_DIR.glob("*.pdf"):
+            try:
+                stat = f.stat()
+                files.append({
+                    "name": f.name,
+                    "size": stat.st_size,
+                    "upload_time": stat.st_mtime,
+                    "path": str(f)
+                })
+            except Exception as e:
+                print(f"Error stating file {f}: {e}")
+        return files
+    except Exception as e:
+        print(f"Error listing files: {e}")
+        return JSONResponse(status_code=500, content={"error": str(e)})
 
 @api_router.post("/upload")
 async def upload_files(files: List[UploadFile] = File(...)):
