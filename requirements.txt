@@ -1,0 +1,9 @@
+fastapi
+python-multipart
+PyMuPDF
+openai
+python-dotenv
+tenacity
+pandas
+openpyxl
+jinja2
