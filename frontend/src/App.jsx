@@ -61,9 +61,11 @@ function App() {
   const refreshFiles = async () => {
     try {
       const res = await axios.get(`${API_BASE}/files`);
-      setFiles(res.data);
+      // 确保 res.data 是数组，增加安全性
+      setFiles(Array.isArray(res.data) ? res.data : []);
     } catch (err) {
       console.error('Failed to fetch files', err);
+      setFiles([]); // 出错时重置为空数组，防止 .map 报错
     }
   };
 

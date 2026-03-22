@@ -19,11 +19,16 @@ const ReportDashboard = ({ report, results }) => {
 
   // 2. 品类统计
   const categoryStats = useMemo(() => {
-    if (!results) return [];
-    return Object.entries(results).map(([cat, products]) => ({
-      name: cat,
-      count: Object.keys(products).length
-    }));
+    if (!results || typeof results !== 'object') return [];
+    try {
+      return Object.entries(results).map(([cat, products]) => ({
+        name: cat,
+        count: products ? Object.keys(products).length : 0
+      }));
+    } catch (e) {
+      console.error("Error calculating categoryStats:", e);
+      return [];
+    }
   }, [results]);
 
   const totalProducts = useMemo(() => {

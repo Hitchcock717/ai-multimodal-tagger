@@ -206,9 +206,9 @@ const FileUploader = ({ files, onFilesChange, onStartProcess }) => {
         
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
           <AnimatePresence>
-            {files.map((file) => (
+            {Array.isArray(files) && files.map((file, idx) => (
               <motion.div
-                key={file.name}
+                key={file.name || idx}
                 layout
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
