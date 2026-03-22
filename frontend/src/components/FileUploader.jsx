@@ -34,40 +34,48 @@ const FileUploader = ({ files, onFilesChange, onStartProcess }) => {
 
     setUploading(true);
     setUploadProgress(0);
-    const formData = new FormData();
-    for (let file of pdfFiles) {
-      // 这里的 file.webkitRelativePath 在文件夹上传时会包含路径
-      // 我们将其包装成一个新的 File 对象，只保留文件名，确保后端能正确识别
-      const fileName = file.name; 
-      formData.append('files', file, fileName);
+    
+    let successCount = 0;
+    let failCount = 0;
+
+    // 逐个上传文件，规避 Vercel 4.5MB 限制
+    for (let i = 0; i < pdfFiles.length; i++) {
+      const file = pdfFiles[i];
+      
+      // 检查单个文件大小 (Vercel 限制为 4.5MB)
+      if (file.size > 4.5 * 1024 * 1024) {
+        console.warn(`File ${file.name} is too large (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+        failCount++;
+        continue;
+      }
+
+      const formData = new FormData();
+      formData.append('files', file, file.name);
+
+      try {
+        console.log(`Uploading file ${i + 1}/${pdfFiles.length}: ${file.name}`);
+        await axios.post(`${API_BASE}/upload`, formData, {
+          onUploadProgress: (progressEvent) => {
+            const currentFileProgress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            const totalProgress = Math.round(((i * 100) + currentFileProgress) / pdfFiles.length);
+            setUploadProgress(totalProgress);
+          },
+        });
+        successCount++;
+      } catch (err) {
+        console.error(`Failed to upload ${file.name}:`, err);
+        failCount++;
+      }
     }
 
-    try {
-      console.log(`Starting upload of ${pdfFiles.length} files...`);
-      const res = await axios.post(`${API_BASE}/upload`, formData, {
-        onUploadProgress: (progressEvent) => {
-          const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
-          console.log(`Upload progress: ${progress}%`);
-          setUploadProgress(progress);
-        },
-      });
-      console.log('Upload response:', res.data);
-      onFilesChange();
-    } catch (err) {
-      console.error('Upload error details:', err);
-      if (err.response) {
-        console.error('Server responded with:', err.response.status, err.response.data);
-        alert(`上传失败: 服务器返回 ${err.response.status} - ${JSON.stringify(err.response.data)}`);
-      } else if (err.request) {
-        console.error('No response received from server');
-        alert('上传失败: 无法连接到服务器，请检查后端是否启动');
-      } else {
-        alert(`上传失败: ${err.message}`);
-      }
-    } finally {
-      setUploading(false);
-      setUploadProgress(0);
+    if (failCount > 0) {
+      alert(`上传完成。成功: ${successCount}, 失败: ${failCount} (注意：Vercel 限制单个文件不能超过 4.5MB)`);
     }
+    
+    console.log('Upload process finished');
+    onFilesChange();
+    setUploading(false);
+    setUploadProgress(0);
   };
 
   const onDrop = useCallback((e) => {
