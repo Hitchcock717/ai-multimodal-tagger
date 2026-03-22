@@ -3,7 +3,8 @@ import axios from 'axios';
 import { Upload, X, FileText, Check, Loader2, FolderPlus, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-const API_BASE = 'http://localhost:8000';
+// 动态判断 API 基础路径，适配本地开发和 Vercel 部署
+const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:8000';
 
 const FileUploader = ({ files, onFilesChange, onStartProcess }) => {
   const [isDragging, setIsDragging] = useState(false);

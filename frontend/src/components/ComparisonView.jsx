@@ -8,15 +8,18 @@ const ComparisonView = ({ results, models, taskId }) => {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [isExporting, setIsExporting] = useState(false);
 
+  // 动态判断 API 基础路径
+  const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:8000';
+
   const categories = ['All', ...Object.keys(results)];
 
   const handleExport = async (format = 'xlsx') => {
-    if (!taskId) return alert('任务 ID 缺失，无法导出');
+    if (!taskId) return alert('任务 ID缺失，无法导出');
     setIsExporting(true);
     try {
       // 使用 a 标签模拟下载，更稳定
       const link = document.createElement('a');
-      link.href = `http://localhost:8000/download/${taskId}?format=${format}`;
+      link.href = `${API_BASE}/download/${taskId}?format=${format}`;
       link.setAttribute('download', `全量结果_${taskId}.${format}`);
       document.body.appendChild(link);
       link.click();
