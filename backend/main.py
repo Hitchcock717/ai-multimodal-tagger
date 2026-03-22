@@ -18,6 +18,7 @@ from fastapi import FastAPI, UploadFile, File, Form, HTTPException, BackgroundTa
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+import zipfile
 
 try:
     from services.pdf_service import extract_pdf_info, get_category_from_filename
@@ -84,20 +85,38 @@ async def upload_files(files: List[UploadFile] = File(...)):
     uploaded = []
     for file in files:
         try:
-            # 处理文件夹上传带来的路径问题，只取文件名
             filename = os.path.basename(file.filename)
-            if not filename:
-                print("Skipping file with empty filename")
-                continue
+            if not filename: continue
             
-            print(f"Uploading file: {filename}")
             file_path = UPLOAD_DIR / filename
             with file_path.open("wb") as buffer:
                 shutil.copyfileobj(file.file, buffer)
             
-            size = file_path.stat().st_size
-            uploaded.append({"name": filename, "size": size})
-            print(f"Successfully uploaded {filename} ({size} bytes)")
+            # 如果是 ZIP 文件，自动解压出 PDF
+            if filename.lower().endswith('.zip'):
+                print(f"Extracting ZIP file: {filename}")
+                try:
+                    with zipfile.ZipFile(file_path, 'r') as zip_ref:
+                        # 只解压 PDF 文件，且平铺到 UPLOAD_DIR
+                        for member in zip_ref.namelist():
+                            if member.lower().endswith('.pdf'):
+                                # 移除 ZIP 内的路径，只保留文件名
+                                member_filename = os.path.basename(member)
+                                if not member_filename: continue
+                                
+                                source = zip_ref.open(member)
+                                target_path = UPLOAD_DIR / member_filename
+                                with open(target_path, "wb") as target:
+                                    shutil.copyfileobj(source, target)
+                                uploaded.append({"name": member_filename, "size": target_path.stat().st_size})
+                    # 解压完删除原始 ZIP
+                    file_path.unlink()
+                except Exception as zip_err:
+                    print(f"Error extracting {filename}: {zip_err}")
+            else:
+                size = file_path.stat().st_size
+                uploaded.append({"name": filename, "size": size})
+                
         except Exception as e:
             print(f"Error uploading file {file.filename}: {e}")
             

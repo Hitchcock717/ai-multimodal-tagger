@@ -25,10 +25,14 @@ const FileUploader = ({ files, onFilesChange, onStartProcess }) => {
     const fileList = Array.from(selectedFiles);
     if (fileList.length === 0) return;
     
-    // 过滤非 PDF 文件
-    const pdfFiles = fileList.filter(file => file.name.toLowerCase().endsWith('.pdf'));
-    if (pdfFiles.length === 0) {
-      alert('请上传 PDF 格式的文件');
+    // 过滤 PDF 和 ZIP 文件
+    const allowedFiles = fileList.filter(file => {
+      const name = file.name.toLowerCase();
+      return name.endsWith('.pdf') || name.endsWith('.zip');
+    });
+
+    if (allowedFiles.length === 0) {
+      alert('请上传 PDF 或 ZIP 格式的文件');
       return;
     }
 
@@ -39,12 +43,18 @@ const FileUploader = ({ files, onFilesChange, onStartProcess }) => {
     let failCount = 0;
 
     // 逐个上传文件，规避 Vercel 4.5MB 限制
-    for (let i = 0; i < pdfFiles.length; i++) {
-      const file = pdfFiles[i];
+    for (let i = 0; i < allowedFiles.length; i++) {
+      const file = allowedFiles[i];
       
-      // 检查单个文件大小 (Vercel 限制为 4.5MB)
-      if (file.size > 4.5 * 1024 * 1024) {
+      // 检查单个文件大小 (Vercel 限制为 4.5MB, 用户要求显示 50MB 但 Vercel 基础设施有硬限制)
+      // 注意：如果是 Vercel 部署，4.5MB 是硬限制，无法通过代码修改。
+      // 但如果是本地运行，可以支持 50MB。
+      const isProd = import.meta.env.PROD;
+      const limitMB = isProd ? 4.5 : 50; 
+      
+      if (file.size > limitMB * 1024 * 1024) {
         console.warn(`File ${file.name} is too large (${(file.size / 1024 / 1024).toFixed(2)}MB)`);
+        alert(`文件 ${file.name} 过大。${isProd ? 'Vercel 生产环境限制单个请求最大 4.5MB，请压缩后上传。' : '本地环境支持 50MB。'}`);
         failCount++;
         continue;
       }
@@ -166,7 +176,8 @@ const FileUploader = ({ files, onFilesChange, onStartProcess }) => {
         </div>
         <div className="text-center">
           <p className="font-medium text-gray-700">拖拽 PDF 文件或文件夹到此处</p>
-          <p className="text-sm text-gray-400 mt-1">支持批量上传，单个文件最大 50MB</p>
+          <p className="text-gray-400 text-sm font-medium">支持 PDF 或 ZIP 压缩包，单个文件最大 50MB</p>
+          <p className="text-gray-300 text-[10px] mt-2 font-bold uppercase tracking-widest italic">Note: Vercel Cloud has a 4.5MB limit per request</p>
         </div>
         <div className="flex space-x-3">
           <label className="bg-white border border-gray-200 px-4 py-2 rounded-lg text-sm font-medium cursor-pointer hover:bg-gray-50 transition-colors">
