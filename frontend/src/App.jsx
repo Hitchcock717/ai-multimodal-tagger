@@ -8,7 +8,7 @@ import ResultCard from './components/ResultCard';
 import ComparisonView from './components/ComparisonView';
 import ReportDashboard from './components/ReportDashboard';
 
-const API_BASE = import.meta.env.PROD ? '' : 'http://localhost:8000';
+const API_BASE = import.meta.env.PROD ? '/api' : 'http://localhost:8000';
 
 function App() {
   const [activeTab, setActiveTab] = useState('upload');
